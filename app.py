@@ -12,7 +12,7 @@ import json
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # dataFramelerin düzenlenmesi
-df = pd.read_csv("ilcelerr.csv")
+df = pd.read_csv("ilceler.csv")
 df_tum_il = df.groupby("il").sum().reset_index()
 
 
