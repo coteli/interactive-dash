@@ -4,12 +4,15 @@ import pandas as pd
 import numpy as np
 import dash_bootstrap_components as dbc
 from datetime import timedelta
+from plotly.graph_objects import Layout
+from plotly.validator_cache import ValidatorCache
 
 # Haritalar için GeoJson bilgilerini almak için gerekli kütüphaneler
 from urllib.request import urlopen
 import json
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app.title = "Dash Interactive Visualization"
 
 # dataFramelerin düzenlenmesi
 df = pd.read_csv("ilceler.csv")
@@ -24,40 +27,46 @@ app.layout = dbc.Container(html.Div(children=[
         html.H3(children="Yıllara Göre Konut Satışları Haritası"),
 
         dbc.Spinner(dcc.Graph(id='harita-yillik'), size="lg", color="rgb(227, 96, 11)"),
+        html.P("Yıl Seçiniz", className="pt-3 pl-3 mb-1"),
         dcc.Slider(
             df['yil'].min(),
             df['yil'].max(),
             step=None,
-            value=2015,
+            value=2018,
             marks={str(yil): str(yil) for yil in df['yil'].unique()},
             id='yil-slider',
-            className="mt-3"
+            className="p-3 mb-4"
         )
     ]),
 
     html.Hr(),
 
     html.Div([
-        html.H3(children="İlçelere Göre Konut Satış Sayıları", className="mb-3"),
+        html.H3(children="İlçelere ve Aylara Göre Konut Satış Sayıları", className="mb-3"),
         dbc.Row([
             dbc.Col(
-                [dbc.Label("İl Seçiniz"),
-                 dcc.Dropdown(
-                    df['il'].unique(),
-                    value="Ankara",
-                    id='il-secim'
-                )]),
+                [   
+                dbc.Label("İl Seçiniz"),
+                dcc.Dropdown(
+                   df['il'].unique(),
+                   value="Ankara",
+                   id='il-secim'
+                ),
+                dbc.Spinner(dcc.Graph(id='ilceler'), size="lg", color="rgb(227, 96, 11)")
+                ]),
             dbc.Col(
                 [dbc.Label("Yıl Seçiniz"),
                  dcc.Dropdown(
                     df['yil'].unique(),
                     value=2015,
                     id='yil-secim'
-                )]),
+                ),
+                dbc.Spinner(dcc.Graph(id='aylar'), size="lg", color="rgb(227, 96, 11)")
+                ]),
         ])
     ]),
 
-    dbc.Spinner(dcc.Graph(id='ilceler'), size="lg", color="rgb(227, 96, 11)"),
+    
 
     html.Hr(),
 
@@ -96,16 +105,35 @@ def update_figure(selected_il, selected_yil):
     filtered_df = filtered_df[filtered_df.yil == selected_yil]
 
     fig = px.bar(filtered_df.groupby(["ilce"]).sum().reset_index().sort_values(by="satis"),
-                 x="satis", y='ilce', orientation='h', labels={'satis': 'Satış Sayıları', 'ilce': 'İlçeler'})
+                 x="satis", y='ilce', orientation='h', 
+                 title = "İlçelere Göre Konut Satış Sayıları", labels={'satis': 'Satış Sayıları', 'ilce': 'İlçeler'})
     fig.update_traces(marker_color="rgba(227, 96, 11, 0.93)",
                       hoverlabel_bgcolor="rgba(49, 100, 150, 0.8)")
-    fig.update_layout(plot_bgcolor="white")
+    fig.update_layout(plot_bgcolor="white", title_x=0.5)
     fig.update_xaxes(gridcolor="rgb(230,230,230)")
     fig.update_yaxes(gridcolor="rgb(230,230,230)")
 
     return fig
 
+# Aylara Göre Konut Satış Sayıları
+@app.callback(
+    Output('aylar', 'figure'),
+    Input('il-secim', 'value'),
+    Input('yil-secim', 'value'))
+def update_figure(selected_il, selected_yil):
+    filtered_df = df[df.il == selected_il]
+    filtered_df = filtered_df[filtered_df.yil == selected_yil]
+    
+    fig = px.bar(filtered_df.groupby(["il","yil","ay","ay-isim"]).sum().reset_index(),
+                 x="ay-isim", y='satis', 
+                 title = "Aylara Göre Konut Satış Sayıları", labels={'satis': 'Satış Sayıları', 'ay-isim': 'Aylar'})
+    fig.update_traces(marker_color="rgba(227, 96, 11, 0.93)",
+                      hoverlabel_bgcolor="rgba(49, 100, 150, 0.8)")
+    fig.update_layout(plot_bgcolor="white", title_x=0.5)
+    fig.update_xaxes(gridcolor="rgb(230,230,230)")
+    fig.update_yaxes(gridcolor="rgb(230,230,230)")
 
+    return fig
 
 
 if __name__ == '__main__':
